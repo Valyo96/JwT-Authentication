@@ -45,4 +45,34 @@ public class JWTService {
         byte[] keyBytes = Decoders.BASE64.decode(JWT_SECRET);
         return Keys.hmacShaKeyFor(keyBytes);
     }
+
+    public String extractEmailFromToken(String theToken) {
+        return extractClaim(theToken , Claims::getSubject);
+    }
+
+    public Date extractExpirationTimeFromToken(String theToken){
+        return extractClaim(theToken, Claims::getExpiration);
+    }
+
+    public Boolean validateToken(String theToken , UserDetails userDetails){
+        final String username = extractEmailFromToken(theToken);
+        return (username.equals(userDetails.getUsername()) && !isTokenExpired(theToken));
+    }
+
+    private <T> T extractClaim(String token , Function<Claims , T> claimsResolver){
+        final Claims claims = extractAllClaims(token);
+        return claimsResolver.apply(claims);
+    }
+
+    private Claims extractAllClaims(String token){
+        return Jwts.parserBuilder()
+            .setSigningKey(getSignKey())
+            .build()
+            .parseClaimsJws(token)
+            .getBody();
+    }
+
+    private boolean isTokenExpired(String token){
+        return extractExpirationTimeFromToken(token).before(new Date());
+    }
 }
